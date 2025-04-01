@@ -278,7 +278,24 @@ function renderUserList() {
       const userId = parseInt(item.getAttribute("data-userid"));
       const username = item.getAttribute("data-username");
       selectedUser = { id: userId, username };
-      renderChatInterface();
+
+      // Update the chat header and messages without re-rendering everything
+      document.getElementById(
+        "chatHeader"
+      ).innerHTML = `<h3>Chat with ${username}</h3>`;
+      document.getElementById("messageForm").style.display = "flex";
+      document.getElementById("messageInput").disabled = false;
+      document.getElementById("messageInput").focus();
+      document.querySelector(".send-button").disabled = false;
+
+      // Update active state in user list
+      document.querySelectorAll(".user-item").forEach((ui) => {
+        ui.classList.toggle(
+          "active",
+          ui.getAttribute("data-userid") === userId.toString()
+        );
+      });
+
       loadMessages(userId);
     });
   });
