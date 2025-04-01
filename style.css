@@ -64,6 +64,10 @@ html {
   border-right: 1px solid #ccc;
   padding: 10px;
   background-color: #f8f9fa;
+  overflow-y: auto; /* Add scroll if many users */
+  height: 100vh; /* Full height */
+  position: sticky;
+  top: 0;
 }
 
 .chat-area {
