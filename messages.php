@@ -2,7 +2,6 @@
 require_once 'config.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // Get messages between two users
     $senderId = $_GET['senderId'] ?? 0;
     $receiverId = $_GET['receiverId'] ?? 0;
     
@@ -11,9 +10,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             SELECT m.*, u.username as sender_name 
             FROM messages m
             JOIN users u ON m.sender_id = u.id
-            WHERE (sender_id = :senderId AND receiver_id = :receiverId) 
-               OR (sender_id = :receiverId AND receiver_id = :senderId)
-            ORDER BY timestamp
+            WHERE (m.sender_id = :senderId AND m.receiver_id = :receiverId) 
+               OR (m.sender_id = :receiverId AND m.receiver_id = :senderId)
+            ORDER BY m.timestamp
         ");
         $stmt->execute([
             ':senderId' => $senderId,
@@ -26,7 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         echo json_encode(['error' => 'Failed to fetch messages: ' . $e->getMessage()]);
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Send a new message
     $data = json_decode(file_get_contents('php://input'), true);
     
     if (empty($data['senderId']) || empty($data['receiverId']) || empty($data['content'])) {
@@ -47,11 +45,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             throw new Exception("Invalid receiver");
         }
         
-        // Check for duplicate messages
+        // MySQL version of duplicate check (5 second interval)
         $stmt = $db->prepare("
             SELECT * FROM messages 
-            WHERE sender_id = :senderId AND receiver_id = :receiverId AND content = :content
-            AND timestamp > NOW() - INTERVAL '5 seconds'
+            WHERE sender_id = :senderId 
+            AND receiver_id = :receiverId 
+            AND content = :content
+            AND timestamp > DATE_SUB(NOW(), INTERVAL 5 SECOND)
         ");
         $stmt->execute([
             ':senderId' => $data['senderId'],
@@ -65,11 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             return;
         }
         
-        // Insert new message
+        // Insert new message (MySQL version)
         $stmt = $db->prepare("
             INSERT INTO messages (sender_id, receiver_id, content) 
-            VALUES (:senderId, :receiverId, :content) 
-            RETURNING *, (SELECT username FROM users WHERE id = :senderId) as sender_name
+            VALUES (:senderId, :receiverId, :content)
         ");
         $stmt->execute([
             ':senderId' => $data['senderId'],
@@ -77,7 +76,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             ':content' => $data['content']
         ]);
         
+        // Get the inserted message with sender_name
+        $messageId = $db->lastInsertId();
+        $stmt = $db->prepare("
+            SELECT m.*, u.username as sender_name
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            WHERE m.id = :messageId
+        ");
+        $stmt->execute([':messageId' => $messageId]);
         $message = $stmt->fetch(PDO::FETCH_ASSOC);
+        
         echo json_encode($message);
     } catch (Exception $e) {
         echo json_encode(['error' => 'Failed to send message: ' . $e->getMessage()]);
