@@ -22,16 +22,21 @@ function handleRegister($db, $data) {
     }
 
     try {
-        $stmt = $db->prepare("INSERT INTO users (username, password) VALUES (:username, :password) RETURNING id, username");
+        $stmt = $db->prepare("INSERT INTO users (username, password) VALUES (:username, :password)");
         $stmt->execute([
             ':username' => $data['username'],
             ':password' => $data['password']
         ]);
         
+        // MySQL alternative for RETURNING clause
+        $userId = $db->lastInsertId();
+        $stmt = $db->prepare("SELECT id, username FROM users WHERE id = :id");
+        $stmt->execute([':id' => $userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
         echo json_encode($user);
     } catch (PDOException $e) {
-        if ($e->getCode() == 23505) { // Unique violation
+        if ($e->errorInfo[1] == 1062) { // MySQL duplicate key error
             echo json_encode(['error' => 'Username already exists']);
         } else {
             echo json_encode(['error' => 'Registration failed: ' . $e->getMessage()]);
