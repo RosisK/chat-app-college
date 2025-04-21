@@ -1,6 +1,5 @@
 # Ignore environment and configuration files
 .env
-/config.php
 
 # Ignore IDE specific files
 .idea/
