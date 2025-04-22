@@ -1,8 +1,8 @@
 <?php
 $host = 'localhost';
 $dbname = 'chat_app';
-$username = 'chat_user';
-$password = 'Admin_123';
+$username = 'root'; 
+$password = '';
 
 try {
     $db = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
